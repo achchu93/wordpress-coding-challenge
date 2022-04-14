@@ -75,14 +75,16 @@ class Block {
 			<?php
 			foreach ( $post_types as $post_type_slug ) :
 				$post_type_object = get_post_type_object( $post_type_slug );
-				$post_count       = count(
-					get_posts(
-						[
-							'post_type'      => $post_type_slug,
-							'posts_per_page' => -1,
-						]
-					)
+				$post_type_query  = new WP_Query(
+					[
+						'post_type'              => $post_type_slug,
+						'posts_per_page'         => 10,
+						'update_post_meta_cache' => false,
+						'update_post_term_cache' => false,
+
+					]
 				);
+				$post_count = $post_type_query->found_posts;
 				?>
 				<li>
 					<?php
@@ -109,9 +111,9 @@ class Block {
 			<?php
 			$query = new WP_Query(
 				[
-					'post_type'     => [ 'post', 'page' ],
-					'post_status'   => 'any',
-					'date_query'    => [
+					'post_type'              => [ 'post', 'page' ],
+					'post_status'            => 'any',
+					'date_query'             => [
 						[
 							'hour'    => 9,
 							'compare' => '>=',
@@ -121,9 +123,11 @@ class Block {
 							'compare' => '<=',
 						],
 					],
-					'tag'           => 'foo',
-					'category_name' => 'baz',
-					'post__not_in'  => [ get_the_ID() ],
+					'tag'                    => 'foo',
+					'category_name'          => 'baz',
+					'no_found_rows'          => true,
+					'posts_per_page'         => 5,
+					'update_post_meta_cache' => false,
 				]
 			);
 
@@ -131,8 +135,15 @@ class Block {
 				?>
 				<h2><?php echo esc_html__( '5 posts with the tag of foo and the category of baz', 'site-counts' ); ?></h2>
 				<ul>
-					<?php foreach ( array_slice( $query->posts, 0, 5 ) as $post ) : ?>
-					<li><?php echo esc_html( $post->post_title ); ?></li>
+					<?php
+					foreach ( $query->posts as $post ) :
+
+						if ( $post_id === $post->ID ) {
+							continue;
+						}
+						?>
+						<li><?php echo esc_html( $post->post_title ); ?></li>
+
 					<?php endforeach; ?>
 				</ul>
 			<?php endif; ?>
