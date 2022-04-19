@@ -67,7 +67,7 @@ class Block {
 		global $post;
 
 		$post_types = get_post_types( [ 'public' => true ] );
-		$class_name = $attributes['className'];
+		$class_name = isset( $attributes['className'] ) ? $attributes['className'] : '';
 
 		if ( isset( $post ) ) {
 			$post_id = $post->ID;
@@ -124,40 +124,52 @@ class Block {
 			</p>
 
 			<?php
-			$query = new WP_Query(
-				[
-					'post_type'              => [ 'post', 'page' ],
-					'post_status'            => 'any',
-					'date_query'             => [
-						[
-							'hour'    => 9,
-							'compare' => '>=',
-						],
-						[
-							'hour'    => 17,
-							'compare' => '<=',
-						],
-					],
-					'tag'                    => 'foo',
-					'category_name'          => 'baz',
-					'no_found_rows'          => true,
-					'posts_per_page'         => 5,
-					'update_post_meta_cache' => false,
-				]
-			);
 
-			if ( $query->have_posts() ) :
+			$recent_foo_baz_posts = wp_cache_get( 'recent_foo_baz_posts', 'recent_posts' );
+
+			if ( false === $recent_foo_baz_posts ) {
+
+				$foo_baz_query = new WP_Query(
+					[
+						'post_status'            => 'any',
+						'date_query'             => [
+							[
+								'hour'    => 9,
+								'compare' => '>=',
+							],
+							[
+								'hour'    => 17,
+								'compare' => '<=',
+							],
+						],
+						'tag'                    => 'foo',
+						'category_name'          => 'baz',
+						'no_found_rows'          => true,
+						'posts_per_page'         => 5,
+						'update_post_meta_cache' => false,
+						'update_post_term_cache' => false,
+					]
+				);
+
+				if ( ! is_wp_error( $foo_baz_query ) && $foo_baz_query->have_posts() ) {
+
+					$recent_foo_baz_posts = $foo_baz_query->posts;
+					wp_cache_set( 'prefix_top_commented_posts', $recent_foo_baz_posts, 'recent_posts', 5 * MINUTE_IN_SECONDS );
+				}
+			}
+
+			if ( false !== $recent_foo_baz_posts ) :
 				?>
 				<h2><?php echo esc_html__( '5 posts with the tag of foo and the category of baz', 'site-counts' ); ?></h2>
 				<ul>
 					<?php
-					foreach ( $query->posts as $tag_post ) :
+					foreach ( $recent_foo_baz_posts as $recent_foo_baz_post ) :
 
-						if ( $post_id === $tag_post->ID ) {
+						if ( $post_id === $recent_foo_baz_post->ID ) {
 							continue;
 						}
 						?>
-						<li><?php echo esc_html( $tag_post->post_title ); ?></li>
+						<li><?php echo esc_html( $recent_foo_baz_post->post_title ); ?></li>
 
 					<?php endforeach; ?>
 				</ul>
