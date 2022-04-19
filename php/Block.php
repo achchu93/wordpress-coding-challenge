@@ -63,9 +63,18 @@ class Block {
 	 * @return string The markup of the block.
 	 */
 	public function render_callback( $attributes, $content, $block ) {
-		$post_id    = get_the_ID();
+
+		global $post;
+
 		$post_types = get_post_types( [ 'public' => true ] );
 		$class_name = $attributes['className'];
+
+		if ( isset( $post ) ) {
+			$post_id = $post->ID;
+		} else {
+			$post_id = isset( $_GET['post'] ) ? $_GET['post'] : 0; // phpcs:ignore
+		}
+
 		ob_start();
 
 		?>
@@ -75,25 +84,31 @@ class Block {
 			<?php
 			foreach ( $post_types as $post_type_slug ) :
 				$post_type_object = get_post_type_object( $post_type_slug );
-				$post_type_query  = new WP_Query(
-					[
-						'post_type'              => $post_type_slug,
-						'posts_per_page'         => 10,
-						'update_post_meta_cache' => false,
-						'update_post_term_cache' => false,
-
-					]
-				);
-				$post_count = $post_type_query->found_posts;
+				$post_count       = wp_count_posts( $post_type_slug );
 				?>
 				<li>
 					<?php
-					echo sprintf(
-						/* translators: %1$d: post type count %2$s: post type name */
-						esc_html__( 'There are %1$d %2$s', 'site-counts' ),
-						esc_html( $post_count ),
-						esc_html( $post_type_object->labels->name )
-					);
+					if ( $post_count->publish > 0 ) {
+						echo esc_html(
+							sprintf(
+								/* translators: 1: Post Count 2: Post Type */
+								_n(
+									'There is %1$d %2$s',
+									'There are %1$d %2$s',
+									intval( $post_count->publish ),
+									'site-counts'
+								),
+								$post_count->publish,
+								$post_count->publish > 1 ? esc_html( $post_type_object->labels->name ) : esc_html( $post_type_object->labels->singular_name )
+							)
+						);
+					} else {
+						echo sprintf(
+							/* translators: %s: Post Type */
+							esc_html__( 'There is no Posts for %s', 'site-counts' ),
+							esc_html( $post_type_object->labels->name )
+						);
+					}
 					?>
 				</li>
 			<?php endforeach; ?>
@@ -136,13 +151,13 @@ class Block {
 				<h2><?php echo esc_html__( '5 posts with the tag of foo and the category of baz', 'site-counts' ); ?></h2>
 				<ul>
 					<?php
-					foreach ( $query->posts as $post ) :
+					foreach ( $query->posts as $tag_post ) :
 
-						if ( $post_id === $post->ID ) {
+						if ( $post_id === $tag_post->ID ) {
 							continue;
 						}
 						?>
-						<li><?php echo esc_html( $post->post_title ); ?></li>
+						<li><?php echo esc_html( $tag_post->post_title ); ?></li>
 
 					<?php endforeach; ?>
 				</ul>
